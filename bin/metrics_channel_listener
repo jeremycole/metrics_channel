@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+
+require "metrics_channel"
+require "pp"
+require "json"
+
+EventMachine.run do
+  channel = MetricsChannel::Channel.new("localhost")
+
+  channel.establish_queue
+
+  [100, 1000, 60000].each do |period|
+    channel.subscribe_period(period, "all", :class => "host")
+  end
+
+  channel.receive do |metadata, metrics|
+    puts "Message from route #{metadata.routing_key}"
+    puts "Headers:"
+    pp metadata.headers
+    if metrics
+      puts JSON.dump(metrics.data)
+      metrics.dump
+      puts
+    end
+  end
+
+  trap("INT") do
+    channel.close { EventMachine.stop }
+  end
+end

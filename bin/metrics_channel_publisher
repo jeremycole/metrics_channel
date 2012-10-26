@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+
+require "getoptlong"
+require "ostruct"
+require "metrics_channel"
+require "pp"
+
+@options = OpenStruct.new
+@options.broker     = "localhost"
+@options.period     = 1000
+@options.collector  = nil
+
+def usage(exit_code, message = nil)
+  print "Error: #{message}\n\n" unless message.nil?
+
+  print <<'END_OF_USAGE'
+
+Usage: metrics_channel_publisher -c <collector>
+
+  --help, -?
+    Print this usage text.
+
+END_OF_USAGE
+
+  exit exit_code
+end
+
+getopt_options = [
+  [ "--help",             "-?",     GetoptLong::NO_ARGUMENT ],
+  [ "--broker",           "-b",     GetoptLong::REQUIRED_ARGUMENT ],
+  [ "--period",           "-p",     GetoptLong::REQUIRED_ARGUMENT ],
+  [ "--collector",        "-c",     GetoptLong::REQUIRED_ARGUMENT ],
+]
+
+getopt = GetoptLong.new(*getopt_options)
+
+getopt.each do |opt, arg|
+  case opt
+    when "--help"
+      usage 0
+    when "--broker"
+      @options.broker = arg
+    when "--period"
+      @options.period = arg.to_i
+    when "--collector"
+      @options.collector = arg
+  end
+end
+
+unless @options.collector
+  usage 1, "No collector name specified"
+end
+
+unless collector_class = MetricsChannel::Collector.by_name(@options.collector)
+  raise "Couldn't find collector #{@options.collector}"
+end
+
+collector = collector_class.new
+
+EventMachine.run do
+  channel = MetricsChannel::Channel.new(@options.broker)
+
+  status_metrics = PeriodicMetrics.new
+  channel.send_periodic_metrics(@options.period, "host", "smf1-xxx-yy-zzz", collector.name) do
+
+    collector.collect
+    sample = PeriodicMetrics::Sample.new(Time.now.utc.to_f*1000.0)
+    collector.each_metric do |name, value, type|
+      sample.add(name, value, type)
+    end
+    collector.reset
+
+    status_metrics.add_sample(sample)
+
+    status_metrics.delta
+  end
+  
+  trap("INT") do
+    channel.close { EventMachine.stop }
+  end
+end

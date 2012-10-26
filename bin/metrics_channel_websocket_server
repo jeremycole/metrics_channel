@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+
+require "metrics_channel"
+require "em-websocket"
+require "json"
+require "pp"
+
+EventMachine::WebSocket.start(:host => "0.0.0.0", :port => 8080) do |ws|
+  channel = MetricsChannel::Channel.new("localhost")
+  channel.establish_queue
+
+  ws.onopen do
+    puts "WebSocket opened!"
+    pp ws.request
+    puts
+  
+    [100, 1000, 60000].each do |period|
+      channel.subscribe_period(period, "all", :class => "host")
+    end
+
+    channel.receive do |metadata, metrics|
+      #puts "Message from route #{metadata.routing_key}"
+      if metrics
+        if metric = metrics.data[ws.request["query"]["metric"]]
+          ws.send JSON.dump({ :time => metrics.time, :data => metric[:value] })
+        end
+      end
+    end
+  end
+
+  ws.onclose do
+    puts "WebSocket closed"
+    channel.close { }
+  end
+end
