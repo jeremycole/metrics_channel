@@ -2,7 +2,6 @@
 
 require "metrics_channel"
 require "pp"
-require "json"
 
 EventMachine.run do
   channel = MetricsChannel::Channel.new("localhost")
@@ -18,7 +17,6 @@ EventMachine.run do
     puts "Headers:"
     pp metadata.headers
     if metrics
-      puts JSON.dump(metrics.data)
       metrics.dump
       puts
     end
