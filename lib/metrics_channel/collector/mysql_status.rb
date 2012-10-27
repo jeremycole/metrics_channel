@@ -313,7 +313,7 @@ class MetricsChannel::Collector::MysqlStatus < MetricsChannel::MysqlCollector
 
   def collect
     @metrics = {}
-    result = @mysql.query("SHOW GLOBAL STATUS")
+    result = query("SHOW GLOBAL STATUS")
     result.each_hash do |row|
       @metrics[row["Variable_name"]] = row["Value"]
     end

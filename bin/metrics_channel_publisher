@@ -5,6 +5,18 @@ require "ostruct"
 require "metrics_channel"
 require "pp"
 
+@config = {}
+
+def read_config(file)
+  File.open(file) do |f|
+    f.readlines.each do |line|
+      if matches = line.match(/^\s*([a-zA-Z\.]+)\s*=\s*(.*)\s*/)
+        @config[matches[1]] = matches[2]
+      end
+    end
+  end
+end
+
 @options = OpenStruct.new
 @options.broker     = "localhost"
 @options.period     = 1000
@@ -27,6 +39,7 @@ end
 
 getopt_options = [
   [ "--help",             "-?",     GetoptLong::NO_ARGUMENT ],
+  [ "--config",           "-i",     GetoptLong::REQUIRED_ARGUMENT ],
   [ "--broker",           "-b",     GetoptLong::REQUIRED_ARGUMENT ],
   [ "--period",           "-p",     GetoptLong::REQUIRED_ARGUMENT ],
   [ "--collector",        "-c",     GetoptLong::REQUIRED_ARGUMENT ],
@@ -38,6 +51,8 @@ getopt.each do |opt, arg|
   case opt
     when "--help"
       usage 0
+    when "--config"
+      read_config(arg)
     when "--broker"
       @options.broker = arg
     when "--period"
@@ -55,7 +70,7 @@ unless collector_class = MetricsChannel::Collector.by_name(@options.collector)
   raise "Couldn't find collector #{@options.collector}"
 end
 
-collector = collector_class.new
+collector = collector_class.new(@config)
 
 EventMachine.run do
   channel = MetricsChannel::Channel.new(@options.broker)

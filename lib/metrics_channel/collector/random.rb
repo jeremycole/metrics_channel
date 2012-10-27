@@ -3,7 +3,7 @@ class MetricsChannel::Collector::Random < MetricsChannel::Collector
     "random"
   end
 
-  def initialize
+  def initialize(config)
     @random_value   = 0
     @random_counter = 0
   end

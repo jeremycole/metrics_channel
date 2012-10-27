@@ -11,7 +11,7 @@ class MetricsChannel::Collector
     nil
   end
 
-  def initialize
+  def initialize(config)
   end
 
   # Return the name of this collector. This name will be used in various
