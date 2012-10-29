@@ -313,9 +313,17 @@ class MetricsChannel::Collector::MysqlStatus < MetricsChannel::MysqlCollector
 
   def collect
     @metrics = {}
-    result = query("SHOW GLOBAL STATUS")
-    result.each_hash do |row|
-      @metrics[row["Variable_name"]] = row["Value"]
+    begin
+      if result = query("SHOW GLOBAL STATUS")
+        result.each_hash do |row|
+          @metrics[row["Variable_name"]] = row["Value"]
+        end
+      else
+        return false
+      end
+    rescue Mysql::Error
+      @metrics = nil
+      return false
     end
 
     true
@@ -339,6 +347,14 @@ class MetricsChannel::Collector::MysqlStatus < MetricsChannel::MysqlCollector
     end
 
     nil
+  end
+
+  def each_derived_metric(sample)
+    miss_rate = sample.percent(
+      "Innodb_buffer_pool_reads.rate",
+      "Innodb_buffer_pool_read_requests.rate"
+    )
+    yield "Innodb_buffer_pool_hit_rate_percent", 100.0 - miss_rate, :absolute
   end
 
   def reset
