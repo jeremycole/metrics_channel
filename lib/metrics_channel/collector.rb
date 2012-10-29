@@ -44,9 +44,21 @@ class MetricsChannel::Collector
     Time.now.utc.to_f * 1000.0
   end
 
-  # Iterate through all available metrics.
+  # Iterate through all published metrics. The implementation should yield
+  # a (name, value, type) triplet for each metric available, where type is
+  # one of :counter or :absolute. Any metrics that are type :counter will
+  # be turned into rates (with type :rate) before the sample is published
+  # externally.
   def each_metric
     raise "Collector is abstract and should not be used directly"
+  end
+
+  # Iterate through all published derived metrics. The implementation should
+  # yield a (name, value, type) triplet for each derived metric available.
+  # The current completed and rated sample is provided as an argument to the
+  # method, and any metrics yielded back will be added directly to this sample.
+  def each_derived_metric(sample)
+    true
   end
 
   # Reset any stored data after collection has been completed, if necessary.
