@@ -44,6 +44,9 @@ class PeriodicMetrics
     def -(other)
       result = Sample.new(other.time)
 
+      elapsed_time = time - other.time
+      result.add(".time.elapsed", elapsed_time, :absolute)
+
       @data.keys.each do |name|
         unless @data.has_key? name and other.data.has_key? name
           result.add(name, nil, nil)
@@ -55,17 +58,44 @@ class PeriodicMetrics
           next
         end
 
-        elapsed_time = other.time - time
-
         case @data[name][:type]
         when :counter
-          rated_value = (other.data[name][:value].to_f - @data[name][:value].to_f) / elapsed_time.to_f
+          rated_value = (value(name) - other.value(name)) / elapsed_time.to_f
           result.add(name + ".rate", rated_value, :rate)
         else
-          result.add(name, @data[name][:value], @data[name][:type])
+          result.add(name, value(name), type(name))
         end
       end
       result
+    end
+
+    def type(name)
+      @data[name] && @data[name][:type]
+    end
+
+    def value(name)
+      @data[name] && @data[name][:value].to_f
+    end
+
+    def sum(names)
+      names = [names] unless names.is_a? Array
+      sum = 0.0
+      names.each do |name|
+        sum += (value(name) || 0.0).to_f
+      end
+      sum
+    end
+
+    def ratio(a_names, b_names)
+      a = sum(a_names)
+      b = sum(b_names)
+      return nil unless a && b
+
+      (a.to_f / b.to_f)
+    end
+
+    def percent(a_names, b_names)
+      100.0 * ratio(a_names, b_names)
     end
 
     def self.combine(samples, domain=:time)
