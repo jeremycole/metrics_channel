@@ -86,8 +86,15 @@ EventMachine.run do
     collector.reset
 
     status_metrics.add_sample(sample)
+    delta_sample = status_metrics.delta
 
-    status_metrics.delta
+    if delta_sample
+      collector.each_derived_metric(delta_sample) do |name, value, type|
+        delta_sample.add(name, value, type)
+      end
+    end
+
+    delta_sample
   end
   
   trap("INT") do
