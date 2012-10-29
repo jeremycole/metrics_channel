@@ -27,8 +27,34 @@ class MetricsChannel::MysqlCollector < MetricsChannel::Collector
     )
   end
 
+  def yield_with_retry(retries = 1)
+    backoff = 0
+    while retries > 0
+      begin
+        return yield
+      rescue Mysql::Error
+        puts "%s: Error %d: %s (reconnecting)" % [
+          self.class,
+          @mysql.errno,
+          @mysql.error,
+        ]
+        # ERROR 2006 (HY000): MySQL server has gone away
+        if @mysql.errno == 2006
+          sleep((2**backoff).to_f / 1000.0)
+          connect
+          retries -= 1
+          backoff += 1 if backoff < 16
+        else
+          raise
+        end
+      end
+    end
+  end
+
   def query(sql)
     # This should be handling reconnect, backoff, etc.
-    @mysql.query(sql)
+    yield_with_retry do
+      @mysql.query(sql)
+    end
   end
 end
