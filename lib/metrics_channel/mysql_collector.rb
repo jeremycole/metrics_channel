@@ -27,7 +27,7 @@ class MetricsChannel::MysqlCollector < MetricsChannel::Collector
     )
   end
 
-  def yield_with_retry(retries = 1)
+  def yield_with_retry(retries = 16)
     backoff = 0
     while retries > 0
       begin
