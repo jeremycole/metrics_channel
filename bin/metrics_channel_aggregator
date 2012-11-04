@@ -6,7 +6,7 @@ require "metrics_channel"
 require "pp"
 
 @options = OpenStruct.new
-@options.broker     = "localhost"
+@options.broker     = "amqp://localhost"
 @options.input      = 1000
 @options.output     = 60000
 
@@ -50,6 +50,8 @@ end
 puts "Aggregating from #{@options.input} to #{@options.output}"
 
 EventMachine.run do
+  EventMachine.set_quantum(10)
+
   channel = MetricsChannel::Channel.new(@options.broker)
 
   channel.establish_queue

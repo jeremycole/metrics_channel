@@ -4,10 +4,11 @@ require "metrics_channel"
 require "pp"
 
 EventMachine.run do
-  channel = MetricsChannel::Channel.new("localhost")
+  EventMachine.set_quantum(10)
+
+  channel = MetricsChannel::Channel.new("amqp://localhost")
 
   channel.establish_queue
-
   [100, 1000, 60000].each do |period|
     channel.subscribe_period(period, "all", :class => "host")
   end

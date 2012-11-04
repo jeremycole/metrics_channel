@@ -1,27 +1,76 @@
 require "amqp"
 
 class MetricsChannel::Channel
-  def initialize(broker_host)    
-    @broker_host = broker_host
-    @connection = nil
+  attr_reader :broker
+  attr_reader :session
+  attr_reader :channel
+
+  def initialize(broker)
+    @broker = broker
+    @session = nil
     @channel = nil
+    @pending_metrics = []
 
     connect
   end
 
   def connect
-    @connection = AMQP.connect(:host => @broker_host)
-    @channel = AMQP::Channel.new(@connection)
+    handle_failure = Proc.new do
+      puts "AMQP::Session: Failed to connect. Exiting."
+      exit 1
+    end
 
-    @channel.on_error do |channel, close|
-      puts "Reconnecting after channel error"
-      connect
+    @session = AMQP.connect(@broker,
+      :on_tcp_connection_failure => handle_failure)
+
+    @session.on_open do
+      puts "AMQP::Session: Connected to %s version %s on %s" % [
+        @session.broker.product,
+        @session.broker.version,
+        @session.broker_endpoint,
+      ]
+    end
+
+    @session.on_recovery do
+      puts "AMQP::Session: Recovered after connection loss."
+    end
+
+    #@session.on_closed
+    #@session.on_possible_authentication_failure
+
+    @session.on_error do |session, close|
+      puts "AMQP::Session: Reconnecting after session error: code = #{close.reply_code}; text = #{close.reply_text}"
+      session.reconnect(false, 1)
+    end
+
+    @session.on_connection_interruption do |session|
+      puts "AMQP::Session: Connection interrupted. Reconnecting."
+      session.reconnect(false, 1)
+    end
+    #@session.on_tcp_connection_failure
+    #@session.on_tcp_connection_loss
+
+    @channel = AMQP::Channel.new(@session)
+  end
+
+  def store_pending_metrics(period, metrics, routing_key, headers)
+    @pending_metrics.push [period, metrics, routing_key, headers]
+  end
+
+  def send_pending_metrics
+    while @pending_metrics.size > 0
+      period, metrics, routing_key, headers = @pending_metrics.shift
+      puts "Sending metrics #{metrics.inspect}"
+      @channel.headers("period.#{period}ms").
+        publish(Marshal.dump(metrics), :routing_key => routing_key, :headers => headers)
     end
   end
 
   def send_metrics(period, metrics, routing_key, headers)
-    @channel.headers("period.#{period}ms").
-      publish(Marshal.dump(metrics), :routing_key => routing_key, :headers => headers)
+    store_pending_metrics(period, metrics, routing_key, headers)
+    if @session.connected?
+      send_pending_metrics
+    end
   end
 
   def send_periodic_metrics(period, r_class, r_name, r_type)
@@ -64,6 +113,6 @@ class MetricsChannel::Channel
   end
   
   def close
-    @connection.close { yield }
+    @session.close { yield }
   end
 end

@@ -6,7 +6,9 @@ require "json"
 require "pp"
 
 EventMachine::WebSocket.start(:host => "0.0.0.0", :port => 8080) do |ws|
-  channel = MetricsChannel::Channel.new("localhost")
+  EventMachine.set_quantum(10)
+
+  channel = MetricsChannel::Channel.new("amqp://localhost")
   channel.establish_queue
 
   ws.onopen do

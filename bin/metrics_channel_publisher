@@ -18,7 +18,7 @@ def read_config(file)
 end
 
 @options = OpenStruct.new
-@options.broker     = "localhost"
+@options.broker     = "amqp://localhost"
 @options.period     = 1000
 @options.collector  = nil
 
@@ -73,6 +73,8 @@ end
 collector = collector_class.new(@config)
 
 EventMachine.run do
+  EventMachine.set_quantum(10)
+
   channel = MetricsChannel::Channel.new(@options.broker)
 
   status_metrics = PeriodicMetrics.new
