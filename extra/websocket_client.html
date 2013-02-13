@@ -1,0 +1,88 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+<head>
+  <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js'></script>
+  <script src='https://raw.github.com/flot/flot.github.com/master/javascript/jquery.flot.min.js'></script>
+  <script>
+  $(document).ready(function(){
+    if(!("WebSocket" in window)) {
+      alert("Sorry, the build of your browser does not support WebSockets. Please use latest Chrome or Webkit nightly");
+      return;
+    }
+
+    function timeTickFormatter(val, axis) {
+      var d = new Date(val)
+      var f = d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds()
+      return f;
+    }
+
+    // setup plot
+    var options = {
+        series: {
+          shadowSize: 0, // drawing is faster without shadows
+          lines: {
+            show: true,
+            steps: true
+          },
+        }, 
+        yaxis: {},
+        xaxis: {
+          tickSize: 2000,
+          tickFormatter: timeTickFormatter
+          //mode: "time"
+          //timeformat: "%H:%M:%S",
+          //tickSize: [5, "second"]
+        }
+    };
+    var plot = $.plot($("#placeholder"), [ ], options);
+
+    var data = [], totalPoints = 100;
+
+    ws = new WebSocket("ws://localhost:8080/?metric=Bytes_sent.rate");
+    ws.onmessage = function(evt) { 
+      var p = $("<div class='sample'>" + evt.data + " " + data.length + "</div>");
+      //$('#metrics').prepend(p);
+      //p.slideDown(140);
+
+      metric = eval('(' + evt.data + ')')
+
+      if (data.length >= totalPoints)
+        data = data.slice(1);
+
+      data.push(metric);
+
+      var res = [];
+      var min = 0, max = 0, sum = 0;
+      for (var i = 0; i < data.length; ++i) {
+        value = data[i]["data"] * 1000.0;
+        res.push([data[i]["time"], value])
+        min = value < min ? value : min
+        max = value > max ? value : max
+        sum = sum + value;
+      }
+
+      plot.setData([ res ]);
+
+      avg = sum / data.length;
+      plot.getAxes().yaxis.max = max;
+      plot.getAxes().yaxis.tickSize = (max-min) / 10.0;
+      plot.setupGrid();
+      plot.draw();
+    };
+
+    ws.onclose = function() {
+      //alert("socket closed");
+    };
+
+    ws.onopen = function() {
+      //alert("connected...");
+    };
+  });
+  </script>
+</head>
+<body>
+  <div id="placeholder" style="width:1000px;height:500px;"></div>
+  <div id="metrics"></div>
+</body>
+</html>
