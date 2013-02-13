@@ -1,5 +1,9 @@
 #!/usr/bin/env ruby
 
+# An AMQP listener to receive and print metrics from the period exchanges
+# for debugging purposes. By default listens to metrics published in the
+# 100, 1000, and 60000 millisecond periods and prints them all.
+
 require "metrics_channel"
 require "pp"
 

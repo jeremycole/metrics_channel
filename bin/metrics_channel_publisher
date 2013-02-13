@@ -1,5 +1,15 @@
 #!/usr/bin/env ruby
 
+# A publisher collects metrics using some collector class and publishes them
+# to the exchange at the provided interval. The raw metrics are collected
+# by calling the each_metric method on the collector. The delta is produced,
+# and then passed to the each_derived_metric method from the same collector.
+#
+# Normally, raw, unmodified counters should be returned from each_metric,
+# and rates will automatically be produced for any counter metrics. If a metric
+# depends on more than one raw metric (and thus is derived) it should be
+# returned only from the sample provided in each_derived_metric.
+
 require "getoptlong"
 require "ostruct"
 require "metrics_channel"
@@ -31,6 +41,22 @@ Usage: metrics_channel_publisher -c <collector>
 
   --help, -?
     Print this usage text.
+
+  --config, -i <filename>
+    Read configuration values from the provided configuration file.
+
+  --broker, -b <URI>
+    Connect to the AMQP broker using the provided URI. The default broker
+    is "amqp://localhost".
+
+  --period, -p <period_in_ms>
+    Collect and publish metrics from the specified collector at this interval,
+    in milliseconds. The default interval is 1000.
+
+  --collector, -c <name>
+    Use the specified collector to collect metrics. Typically this should be
+    the base filename of some .rb file in the lib/metrics_channel/collector/
+    directory. For example, "cpu".
 
 END_OF_USAGE
 

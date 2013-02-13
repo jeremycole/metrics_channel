@@ -1,5 +1,14 @@
 #!/usr/bin/env ruby
 
+# The websocket server listens to metrics published on the various per-period
+# exchanges and re-publishes the requested metric (via the query parameter
+# "metric") to any connected clients as JSON.
+#
+# For example a websocket connection can be made to receive Bytes_sent.rate:
+#   ws://localhost:8080/?metric=Bytes_sent.rate
+#
+# What is done with the metrics then is entirely up to the receiver. 
+
 require "metrics_channel"
 require "em-websocket"
 require "json"

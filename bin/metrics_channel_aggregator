@@ -1,5 +1,13 @@
 #!/usr/bin/env ruby
 
+# An aggregator listens to one exchange (at high frequency) and collects many
+# samples which are then aggregated and re-published to another exchange (at
+# a lower frequency). Typically this is used to e.g. produce minutely average
+# rates from per-second raw metrics.
+#
+# By default the aggregator will listen to all 1000ms metrics on the exchange
+# and aggregate them into 60000ms minutely averages.
+
 require "getoptlong"
 require "ostruct"
 require "metrics_channel"
@@ -19,6 +27,16 @@ Usage: metrics_channel_publisher -c <collector>
 
   --help, -?
     Print this usage text.
+
+  --broker, -b <URI>
+    Connect to the AMQP broker using the provided URI. The default broker
+    is "amqp://localhost".
+
+  --input, -i <period_in_ms>
+    Read raw metrics from the AMQP exchange for the specified period.
+
+  --output, -o <period_in_ms>
+    Publish aggregated metrics to the AMQP exchange at the specified period.
 
 END_OF_USAGE
 
