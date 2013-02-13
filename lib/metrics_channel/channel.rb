@@ -5,6 +5,7 @@ class MetricsChannel::Channel
   attr_reader :session
   attr_reader :channel
 
+  # Initialize a new Channel, broker should be a URI, e.g. "amqp://localhost"
   def initialize(broker)
     @broker = broker
     @session = nil
@@ -14,6 +15,8 @@ class MetricsChannel::Channel
     connect
   end
 
+  # Connect to the broker and set up callbacks necessary to handle failures
+  # and start dealing with metrics on the channel.
   def connect
     handle_failure = Proc.new do
       puts "AMQP::Session: Failed to connect. Exiting."
@@ -53,10 +56,13 @@ class MetricsChannel::Channel
     @channel = AMQP::Channel.new(@session)
   end
 
+  # Internal method used to store but not immediately send metrics over the
+  # channel. Use send_metrics instead.
   def store_pending_metrics(period, metrics, routing_key, headers)
     @pending_metrics.push [period, metrics, routing_key, headers]
   end
 
+  # Internal method used to send any stored (pending) metrics immediately.
   def send_pending_metrics
     while @pending_metrics.size > 0
       period, metrics, routing_key, headers = @pending_metrics.shift
@@ -66,6 +72,7 @@ class MetricsChannel::Channel
     end
   end
 
+  # 
   def send_metrics(period, metrics, routing_key, headers)
     store_pending_metrics(period, metrics, routing_key, headers)
     if @session.connected?
